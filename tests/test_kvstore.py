@@ -1,0 +1,83 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from kvstore import KVStore
+
+# Test set
+store = KVStore()
+store.set('a', '1')
+
+# Test get
+assert store.get('a') == '1'
+assert store.get('nonexistent') == None
+
+# Test set
+store.set('a', '2')
+assert store.get('a') == '2'
+
+# Test delete
+store.delete('nonexistent')
+store.delete('a')
+assert store.get('a') == None
+
+# Test count
+store.set('a', '1')
+store.set('b', '1')
+assert store.count('1') == 2
+
+store.set('c', '1')
+store.set('d', '2')
+assert store.count('1') == 3
+
+store.set('a', '2')
+assert store.count('1') == 2
+
+# Test transactions
+store = KVStore()
+store.set('a', '1')
+store.begin()
+store.set('a', '4')
+store.set('b', '1')
+store.set('c', '3')
+store.rollback()
+assert store.get('a') == '1'
+assert store.count('1') == 1
+assert store.count('4') == 0
+assert store.get('b') == None
+
+store.begin()
+store.set('b', '2')
+store.commit()
+store.rollback()
+assert store.get('b') == '2'
+assert store.count('2') == 1
+
+# Test nested transactions
+store = KVStore()
+store.set('a', '1')
+
+store.begin()
+store.set('a', '2')
+
+store.begin() # create nested begin
+store.set('a', '3')
+
+store.rollback() # roll back inner transaction
+assert store.get('a') == '2' # should be '2' from outer transaction
+
+store.rollback() # roll back outer transaction
+assert store.get('a') == '1' # should be original '1'
+
+# Test command parsing
+store = KVStore()
+store.execute("SET a 1") # None (or nothing)
+print(store.execute("GET a")) # should print 1
+assert store.get('a') == '1'
+print(store.execute("COUNT 1")) # should print 1
+store.execute("BEGIN")
+store.execute("SET a 2")
+store.execute("ROLLBACK")
+store.execute("GET a") # should print 1
+assert store.get('a') == '1'

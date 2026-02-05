@@ -81,3 +81,41 @@ store.execute("SET a 2")
 store.execute("ROLLBACK")
 store.execute("GET a") # should print 1
 assert store.get('a') == '1'
+
+### Extended test cases ###
+# Multiple sets
+store = KVStore()
+store.set('a', '1')
+store.begin()
+store.set('a', '2')
+store.set('a', '3') # modifying 'a' again
+store.set('a', '4') # and again
+store.rollback()
+assert store.get('a') == '1'
+
+# Delete and set same key, then rollback
+store = KVStore()
+store.set('a', '1')
+store.begin()
+store.delete('a')
+store.set('a', '999') # set 'a' again
+store.rollback()
+assert store.get('a') == '1'
+
+# Empty transactions, ensure no errors are thrown
+store = KVStore()
+store.begin()
+store.rollback()
+
+# More nested with complex ops
+store = KVStore()
+store.set('a', '1')
+store.begin()
+store.set('a', '2')
+store.delete('a')
+store.begin() # nested
+store.set('a', '3')
+store.rollback() # inner rollback, 'a' returns to None
+assert store.get('a') == None
+store.rollback() # outer rollback, 'a' returns to '1'
+assert store.get('a') == '1'

@@ -2,10 +2,11 @@ class KVStore:
     def __init__(self):
         self.store = {}
         self.transactions = [] # we are storing each transaction dictionary here
+        self.backups = {}
     
     def set(self, key, val):
         if self.transactions and key not in self.transactions[-1]:
-            # only need to save it if we haven't already (even if it's None, we need that for rollback)
+            # save current key, value pair to transaction only if it's not already in there (even if it's None, we need that for rollback)
             self.transactions[-1][key] = self.store.get(key)
         self.store[key] = val
         
@@ -14,6 +15,8 @@ class KVStore:
     
     def delete(self, key):
         if self.transactions and key not in self.transactions[-1]:
+            # save current key, value pair to transaction only if it's not already in there
+            # if already in there, that means we already performed a set or delete on this key within this transaction
             self.transactions[-1][key] = self.store.get(key)
         self.store.pop(key, None)
         
@@ -40,6 +43,15 @@ class KVStore:
     def commit(self):
         self.transactions = []
         
+    def backup(self, timestamp):
+        self.backups[timestamp] = self.store.copy()
+        
+    def restore(self, timestamp):
+        if self.backups:
+            restore_backup = self.backups.get(timestamp, None)
+            if restore_backup is not None:
+                self.store = restore_backup.copy()
+        
     def execute(self, command):
         parts = command.split()
         cmd = parts[0]
@@ -58,5 +70,9 @@ class KVStore:
             self.rollback()
         elif cmd == "COMMIT":
             self.commit()
+        elif cmd == "BACKUP":
+            self.backup(parts[1])
+        elif cmd == "RESTORE":
+            self.restore(parts[1])
         else:
             print("Command not recognized.")

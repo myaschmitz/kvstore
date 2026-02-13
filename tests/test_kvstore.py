@@ -119,3 +119,37 @@ store.rollback() # inner rollback, 'a' returns to None
 assert store.get('a') == None
 store.rollback() # outer rollback, 'a' returns to '1'
 assert store.get('a') == '1'
+
+# Backup and restore - basic
+store = KVStore()
+store.set('a', '1')
+store.execute("BACKUP t1")
+store.set('a', '2')
+assert store.get('a') == '2'
+store.execute("RESTORE t1")
+assert store.get('a') == '1'
+
+# Restore nonexistent timestamp - should do nothing
+store = KVStore()
+store.set('a', '1')
+store.execute("RESTORE t99")
+assert store.get('a') == '1'
+
+# Restore twice from same backup - backup persists after restore
+store = KVStore()
+store.set('a', '1')
+store.execute("BACKUP t1")
+store.set('a', '2')
+assert store.get('a') == '2'
+store.execute("RESTORE t1")
+assert store.get('a') == '1'
+store.set('a', '2')
+assert store.get('a') == '2'
+store.execute("RESTORE t1")
+assert store.get('a') == '1'
+
+# Rollback with no active transaction - should do nothing
+store = KVStore()
+store.set('a', '1')
+store.rollback()
+assert store.get('a') == '1'
